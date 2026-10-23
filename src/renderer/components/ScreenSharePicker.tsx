@@ -119,7 +119,9 @@ addPatch({
     }
 });
 
-if (isLinux) {
+// venmic routes the stream audio of WebRTC screen share. With the native voice engine discord_voice captures it
+// itself, and starting venmic for nothing crashed Vesktop (see main/venmic.ts)
+if (isLinux && !window.VesktopDiscordVoice) {
     onceReady.then(() => {
         const ownsStream = (streamKey: string) => {
             return streamKey.split(":").at(-1) === UserStore.getCurrentUser().id;

@@ -1,0 +1,3 @@
+[submodule "packages/vesktop_media"]
+	path = packages/vesktop_media
+	url = https://git.raphmap.ru/celisej567/vesktop_media.git

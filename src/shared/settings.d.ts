@@ -40,6 +40,24 @@ export interface Settings {
 
     spellCheckLanguages?: string[];
 
+    /**
+     * Voice & video engine: Chromium's WebRTC (the web app's own), the official client's discord_voice (when
+     * installed) or Vesktop's own vesktop_media. See main/discordVoice.ts
+     */
+    voiceEngine?: "webrtc" | "discord" | "vesktop";
+    /** @deprecated replaced by voiceEngine (migrated on start-up) */
+    nativeVoice?: boolean;
+    /** Custom path to a directory containing discord_voice's index.js and discord_voice.node (Discord engine) */
+    nativeVoiceModulePath?: string;
+    /** @deprecated replaced by voiceEngine "vesktop" (migrated on start-up) */
+    nativeVoiceOwnEngine?: boolean;
+    /** vesktop_media: H.264 / H.265 encoder, "auto" (NVIDIA first), "hardware" (NVENC) or "software" (x264 / x265) */
+    nativeVoiceVideoEncoder?: "auto" | "hardware" | "software";
+    /** vesktop_media: capture options per camera (by device guid), see renderer/nativeVoiceExtensions.ts */
+    nativeVoiceDeviceOptions?: Record<string, NativeCameraOptions>;
+    /** Settings persisted by discord_voice itself */
+    nativeVoiceAppSettings?: Record<string, unknown>;
+
     audio?: {
         workaround?: boolean;
 
@@ -72,4 +90,13 @@ export interface State {
         ignoredVersion?: string;
         snoozeUntil?: number;
     };
+}
+
+export interface NativeCameraOptions {
+    /** 0 / missing: whatever Discord asks for */
+    width?: number;
+    height?: number;
+    frameRate?: number;
+    /** null / missing: leave the camera's setting alone */
+    autofocus?: boolean | null;
 }

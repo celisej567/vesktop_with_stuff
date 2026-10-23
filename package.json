@@ -71,6 +71,7 @@
             "!*",
             "!node_modules",
             "dist/js",
+            "dist/vesktop_media",
             "static",
             "package.json",
             "LICENSE"
@@ -81,6 +82,9 @@
                 "discord"
             ]
         },
+        "asarUnpack": [
+            "dist/vesktop_media/**"
+        ],
         "beforePack": "scripts/build/beforePack.mjs",
         "afterPack": "scripts/build/afterPack.mjs",
         "toolsets": {

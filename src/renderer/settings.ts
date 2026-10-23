@@ -39,6 +39,15 @@ interface TState {
         resolution: string;
         frameRate: string;
     };
+    /** stream settings used with the native voice engine. resolution "0" is the source resolution */
+    nativeScreenshareQuality?: {
+        resolution: string;
+        frameRate: string;
+        contentHint: string;
+        /** vesktop_media only: kbit/s, "0" = Discord's preset */
+        videoBitrate?: string;
+        audioBitrate?: string;
+    };
 }
 
 const stateKey = "VesktopState";

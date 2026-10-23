@@ -7,9 +7,13 @@
 import { contextBridge, ipcRenderer, webFrame } from "electron/renderer";
 
 import { IpcEvents } from "../shared/IpcEvents";
+import { loadDiscordVoice } from "./discordVoice";
 import { VesktopNative } from "./VesktopNative";
 
 contextBridge.exposeInMainWorld("VesktopNative", VesktopNative);
+
+const discordVoice = loadDiscordVoice();
+if (discordVoice) contextBridge.exposeInMainWorld("VesktopDiscordVoice", discordVoice);
 
 // While sandboxed, Electron "polyfills" these APIs as local variables.
 // We have to pass them as arguments as they are not global

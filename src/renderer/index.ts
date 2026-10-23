@@ -15,7 +15,7 @@ export * as Components from "./components";
 
 import { VesktopSettingsIcon } from "@vencord/types/components";
 
-import SettingsUi from "./components/settings/Settings";
+import SettingsUi, { getSettingsSearchTerms } from "./components/settings/Settings";
 import { VesktopLogger } from "./logger";
 import { Settings } from "./settings";
 export { Settings };
@@ -25,6 +25,32 @@ VesktopLogger.log("Vesktop v" + VesktopNative.app.getVersion());
 
 const SettingsPlugin = Vencord.Plugins.plugins
     .Settings as typeof import("@vencord/types/plugins/_core/settings").default;
+
+// Vencord only makes the page searchable by its title, also add the titles of all our options
+const { buildEntry } = SettingsPlugin;
+SettingsPlugin.buildEntry = function (options) {
+    const entry = buildEntry.call(this, options);
+    if (options.key !== "vesktop") return entry;
+
+    const addTerms = (node: any) => {
+        if (node.useSearchTerms) {
+            const { useSearchTerms } = node;
+            node.useSearchTerms = () => [...useSearchTerms(), ...getSettingsSearchTerms()];
+        }
+
+        if (node.buildLayout) {
+            const { buildLayout } = node;
+            node.buildLayout = () => {
+                const children = buildLayout();
+                children.forEach(addTerms);
+                return children;
+            };
+        }
+    };
+
+    addTerms(entry);
+    return entry;
+};
 
 SettingsPlugin.customEntries.push({
     key: "vesktop",

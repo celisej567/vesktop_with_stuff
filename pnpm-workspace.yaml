@@ -11,6 +11,8 @@ verifyDepsBeforeRun: warn
 recursiveInstall: false
 packages:
   - packages/*
+  # built by scripts/build/build.mts with its own toolchain (CMake), not a pnpm package of the app
+  - "!packages/vesktop_media"
 minimumReleaseAgeExclude:
   - electron
   - '@vencord/*'

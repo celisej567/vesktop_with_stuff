@@ -25,6 +25,7 @@ import { createAboutWindow } from "./about";
 import { initArRPC } from "./arrpc";
 import { CommandLine } from "./cli";
 import { BrowserUserAgent, DEFAULT_HEIGHT, DEFAULT_WIDTH, MIN_HEIGHT, MIN_WIDTH } from "./constants";
+import { isNativeVoiceEnabled } from "./discordVoice";
 import { AppEvents } from "./events";
 import { sendRendererCommand } from "./ipcCommands";
 import { darwinURL } from "./main";
@@ -352,7 +353,9 @@ function buildBrowserWindowOptions(): BrowserWindowConstructorOptions {
         backgroundColor,
         webPreferences: {
             nodeIntegration: false,
-            sandbox: true,
+            // discord_voice is a native module and has to be loaded in the renderer process
+            // (just like the official client does), which isn't possible in a sandboxed renderer
+            sandbox: !isNativeVoiceEnabled(),
             contextIsolation: true,
             devTools: true,
             preload: join(__dirname, "preload.js"),

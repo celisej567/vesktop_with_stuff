@@ -59,6 +59,17 @@ export const VesktopNative = {
         get: () => sendSync<Settings>(IpcEvents.GET_SETTINGS),
         set: (settings: Settings, path?: string) => invoke<void>(IpcEvents.SET_SETTINGS, settings, path)
     },
+    voice: {
+        /** The voice engines that can be used, and the one in use */
+        getEngines: () =>
+            sendSync<{ discord: string | null; vesktop: string | null; active: "webrtc" | "discord" | "vesktop" }>(
+                IpcEvents.NATIVE_VOICE_FIND_MODULE
+            ),
+        listAudioApps: () => invoke<{ name: string; pid: number }[] | null>(IpcEvents.NATIVE_VOICE_LIST_AUDIO_APPS),
+        /** The audio app of a window's application (desktop file name, eg. "org.mozilla.firefox"), if it has one */
+        findAudioApp: (appId: string) =>
+            invoke<{ name: string; pid: number } | null>(IpcEvents.NATIVE_VOICE_FIND_AUDIO_APP, appId)
+    },
     spellcheck: {
         getAvailableLanguages: () => sendSync<string[]>(IpcEvents.SPELLCHECK_GET_AVAILABLE_LANGUAGES),
         onSpellcheckResult(cb: SpellCheckerResultCallback) {

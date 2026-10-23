@@ -16,6 +16,7 @@ import { isMac } from "renderer/utils";
 import { AutoStartToggle } from "./AutoStartToggle";
 import { DeveloperOptionsButton } from "./DeveloperOptions";
 import { DiscordBranchPicker } from "./DiscordBranchPicker";
+import { NativeVoiceToggle } from "./NativeVoiceToggle";
 import { NotificationBadgeToggle } from "./NotificationBadgeToggle";
 import { OutdatedVesktopWarning } from "./OutdatedVesktopWarning";
 import { UserAssetsButton } from "./UserAssets";
@@ -51,6 +52,7 @@ const SettingsOptions: Record<string, Array<BooleanSetting | SettingsComponent>>
             disabled: () => !Settings.store.hardwareAcceleration
         }
     ],
+    "Voice & Video": [NativeVoiceToggle],
     "User Interface": [
         {
             key: "nativeTitleBar",
@@ -150,6 +152,19 @@ const SettingsOptions: Record<string, Array<BooleanSetting | SettingsComponent>>
 
     "Developer Options": [DeveloperOptionsButton]
 };
+
+// Custom components don't have a title we can read, so list what they are about here
+const CustomSearchTerms = ["Native Voice Engine", "discord_voice", "Voice", "Video", "Go Live", "Krisp"];
+
+/** Lets Discord's settings search find the Vesktop page by the names of its options */
+export function getSettingsSearchTerms() {
+    const terms = Object.entries(SettingsOptions).flatMap(([section, settings]) => [
+        section,
+        ...settings.flatMap(s => (typeof s === "function" ? [] : [s.title]))
+    ]);
+
+    return [...terms, ...CustomSearchTerms];
+}
 
 function SettingsSections() {
     const Settings = useSettings();
