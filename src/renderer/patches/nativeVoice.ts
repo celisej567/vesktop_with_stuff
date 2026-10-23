@@ -15,6 +15,7 @@ import { Logger } from "@vencord/types/utils";
 import { onceReady } from "@vencord/types/webpack";
 import { FluxDispatcher, MediaEngineStore, React, UserStore } from "@vencord/types/webpack/common";
 import { SelectedCameraOptions } from "renderer/components/CameraOptionsEditor";
+import { NoiseModelPicker, noiseDescription } from "renderer/components/NoiseModelPicker";
 import {
     addStreamAudioSourceMenu,
     getNativeStreamQuality,
@@ -25,11 +26,15 @@ import {
     SYSTEM_AUDIO
 } from "renderer/components/NativeStreamSettings";
 import {
+    applyNoiseModel,
     applyStoredCameraOptions,
     applyVideoEncoderPreference,
+    hasNoiseModels,
+    isNoiseModelSupported,
     setCameraOptions,
     vesktopVoice
 } from "renderer/nativeVoiceExtensions";
+import { Settings, useSettings } from "renderer/settings";
 
 import { addPatch } from "./shared";
 
@@ -239,6 +244,79 @@ addPatch({
             }
         },
         {
+            // vesktop_media only: the noise suppression choice of Voice & Video settings. Krisp (the official
+            // client's closed-source model) is replaced by the engine's own models, RNNoise and DeepFilterNet
+            find: "VOICE_NOISE_SUPPRESSION_SETTING,{",
+            predicate: () => hasNoiseModels(),
+            replacement: [
+                {
+                    match: /(?<=useCallback\()(\i)=>\{(?=\i\.default\.setNoiseCancellation\("KRISP"===\1)/,
+                    replace: "$1=>{$1=$self.onNoiseOptionSelected($1);"
+                },
+                {
+                    match: /return (\i)&&(\i)\.push\(\{id:"krisp",label:.{0,60}?,value:"KRISP"\}\),/,
+                    replace: "return $self.pushNoiseModels($2),"
+                },
+                {
+                    match: /value:(\i)\?"KRISP":(\i)\?"STANDARD":"NONE"/,
+                    replace: "value:$self.getNoiseValue($1,$2)"
+                }
+            ]
+        },
+        {
+            // vesktop_media only: without Krisp, Discord forces noiseCancellation off (and noiseSuppression on) in the
+            // settings it reads back (MediaEngineStore.getSettings), whatever was chosen. That would show RNNoise as
+            // Standard again and switch it off on the next audio settings update
+            find: "vadKrispActivationThreshold=.8",
+            predicate: () => hasNoiseModels(),
+            replacement: {
+                match: /(\i)=(\i)\(\)\?(\i):(\i)(?=,\i=\{\.\.\.\i\.modeOptions\?\?\{\},)/,
+                replace: "$1=$2()?$3:$self.getNoiseOverrides($4)"
+            }
+        },
+        {
+            // vesktop_media only: at start-up Discord switches noise cancellation off in its saved settings when the
+            // engine does not declare Krisp's feature (`nA({noiseCancellation:!1})`). Ours is the same flag, so the
+            // choice of RNNoise / DeepFilterNet was gone after a restart (the suppression was off too: Discord saves
+            // it off while noise cancellation is on) and the setting showed "None"
+            find: "noiseCancellation:!1}),(0,",
+            predicate: () => hasNoiseModels(),
+            replacement: {
+                match: /\(0,(\i)\.isWeb\)\(\)&&(\i)\(\{noiseCancellation:!1\}\)/,
+                replace: "(0,$1.isWeb)()&&!$self.keepsNoiseCancellation()&&$2({noiseCancellation:!1})"
+            }
+        },
+        {
+            // vesktop_media only: the noise button of the call panel. Discord shows it only when Krisp is supported
+            find: "canGoLive:(0,",
+            predicate: () => hasNoiseModels(),
+            replacement: {
+                match: /noiseCancellationSupported:(\i\.\i)\.isNoiseCancellationSupported\(\)(?=,canGoLive:)/,
+                replace: "noiseCancellationSupported:$1.isNoiseCancellationSupported()||true"
+            }
+        },
+        {
+            // ... and its popout: a list of the noise suppression choices instead of the Krisp switch, without the
+            // Krisp advertisement
+            find: '"WGWHv/"',
+            predicate: () => hasNoiseModels(),
+            replacement: [
+                {
+                    match: /\(0,\i\.jsx\)\(\i\.\i,\{text:\i,shouldShow:\i\|\|\i,align:"right",children:\(0,\i\.jsx\)\("div",\{children:\(0,\i\.jsx\)\(\i\.\i,\{label:\i\.intl\.string\(\i\.t\["WGWHv\/"\]\),checked:.{0,200}?NOISE_CANCELLATION_POPOUT\}\)\}\)\}\)\}\)/,
+                    replace: "$self.renderNoiseModelPicker()"
+                },
+                {
+                    // the text under it, which advertises Krisp
+                    match: /(\(0,\i\.jsx\)\(\i\.\i,\{variant:"text-sm\/normal",children:)\i(\}\)(?=,\(0,\i\.jsx\)\(\i\.\i,\{title:))/,
+                    replace: "$1$self.noiseDescription()$2"
+                },
+                {
+                    match: /,\(0,\i\.jsx\)\(\i\.\i,\{label:\i\.intl\.string\(\i\.t\.k6h1F4\),children:\(0,\i\.jsxs\)\(\i\.\i,\{justify:\i\.\i\.Justify\.BETWEEN,className:\i\.__invalid_footer,children:\[.{0,500}?\]\}\)\}\)(?=\]\}\)\})/,
+                    replace: ""
+                }
+            ]
+        },
+        {
             // The system (xdg-desktop-portal) screenshare picker is the default on Linux, but isLinux() is
             // false on web. Without it, Go Live has no way to pick a source with the native engine on Wayland
             find: "getUseSystemScreensharePicker(){",
@@ -280,6 +358,50 @@ addPatch({
         if (!ours) return original;
         // lower simulcast layers get a quarter, as Discord's presets (and vesktop_media) do
         return (stream.quality ?? 100) < 100 ? (kbps * 1000) / 4 : kbps * 1000;
+    },
+
+    noiseDescription,
+
+    renderNoiseModelPicker() {
+        return React.createElement(NoiseModelPicker);
+    },
+
+    /** The saved noise cancellation flag (our models) stays on at start-up */
+    keepsNoiseCancellation() {
+        return true;
+    },
+
+    /** Discord's settings overrides for "no Krisp", without the forced noise cancellation off: the engine has RNNoise */
+    getNoiseOverrides(overrides: { modeOptions?: object }) {
+        return { modeOptions: overrides.modeOptions };
+    },
+
+    /** Noise cancellation options of vesktop_media (the Krisp entry's place) */
+    pushNoiseModels(options: { id: string; label: string; value: string }[]) {
+        if (isNoiseModelSupported("RNNOISE")) options.push({ id: "rnnoise", label: "RNNoise", value: "RNNOISE" });
+        if (isNoiseModelSupported("DEEPFILTERNET"))
+            options.push({ id: "deepfilternet", label: "DeepFilterNet", value: "DEEPFILTERNET" });
+    },
+
+    /**
+     * The option picked in the settings. Both models are Discord's noise cancellation flag (what its code calls
+     * "KRISP"): returning that value turns it on, and the model selects what runs behind it
+     */
+    onNoiseOptionSelected(value: string) {
+        if (value !== "RNNOISE" && value !== "DEEPFILTERNET") return value;
+        Settings.store.nativeVoiceNoiseModel = value;
+        applyNoiseModel(value);
+        return "KRISP";
+    },
+
+    /**
+     * What the setting shows. Called while the component renders, so the settings hook makes it render again when
+     * the model changes
+     */
+    getNoiseValue(noiseCancellation: boolean, noiseSuppression: boolean) {
+        const { nativeVoiceNoiseModel } = useSettings();
+        if (noiseCancellation) return nativeVoiceNoiseModel ?? "RNNOISE";
+        return noiseSuppression ? "STANDARD" : "NONE";
     },
 
     renderCameraSelect(select: React.ReactNode) {
@@ -469,6 +591,7 @@ if (voice) {
             FluxDispatcher.subscribe("STREAM_STOP", onOwnStreamEnd);
             applyStoredCameraOptions();
             applyVideoEncoderPreference();
+            applyNoiseModel();
         }
     });
 

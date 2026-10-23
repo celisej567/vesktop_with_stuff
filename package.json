@@ -202,7 +202,8 @@
             ]
         },
         "publish": {
-            "provider": "github"
+            "provider": "generic",
+            "url": "https://git.raphmap.ru/celisej567/vesktop_with_stuff/releases"
         },
         "rpm": {
             "fpm": [

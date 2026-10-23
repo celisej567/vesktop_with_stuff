@@ -53,6 +53,8 @@ export interface Settings {
     nativeVoiceOwnEngine?: boolean;
     /** vesktop_media: H.264 / H.265 encoder, "auto" (NVIDIA first), "hardware" (NVENC) or "software" (x264 / x265) */
     nativeVoiceVideoEncoder?: "auto" | "hardware" | "software";
+    /** vesktop_media: the model behind Discord's noise cancellation flag: RNNoise (default) or DeepFilterNet */
+    nativeVoiceNoiseModel?: "RNNOISE" | "DEEPFILTERNET";
     /** vesktop_media: capture options per camera (by device guid), see renderer/nativeVoiceExtensions.ts */
     nativeVoiceDeviceOptions?: Record<string, NativeCameraOptions>;
     /** Settings persisted by discord_voice itself */

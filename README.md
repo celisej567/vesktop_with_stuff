@@ -48,6 +48,21 @@ pnpm package --linux pacman
 pnpm package:dir
 ```
 
+## Vesktop Media (own voice engine, Linux)
+
+`packages/vesktop_media` is a git submodule: an own implementation of Discord's native media engine (voice, cameras, Go
+Live, RNNoise / DeepFilterNet noise suppression). Fetch it with the clone (`git clone --recursive <url>`) or afterwards:
+
+```sh
+git submodule update --init
+```
+
+`pnpm build` builds it on Linux x86-64 when the tools it needs are installed (clang, cmake, ninja, nasm, autotools,
+cargo and a few development headers, listed in [its README](packages/vesktop_media/README.md); the first build downloads
+and compiles about 2 GB of dependencies). Without the submodule or the tools Vesktop is built without it (Settings →
+Voice & Video → engine then offers only WebRTC); `VESKTOP_SKIP_MEDIA=1` skips it on purpose. `pnpm package` also
+builds arm64 packages by default; the module is x86-64 only, add `--x64` (`pnpm package --linux pacman --x64`).
+
 ## Building LibVesktop from Source
 
 This is a small C++ helper library Vesktop uses on Linux to emit D-Bus events. By default, prebuilt binaries for x64 and arm64 are used.

@@ -46,10 +46,18 @@ interface VesktopVoiceEngine {
     getNativeScreenSharePickedSource(): { sourceType: "screen" | "window"; appId: string } | null;
     setVideoEncoderPreference(preference: string): void;
     getVideoEncoders(): { h264: string; h265: string; preference: string };
+    NoiseModel: Record<NoiseModelName, number>;
+    setNoiseModel(model: number): void;
+    isRnNoiseSupported(): boolean;
+    isDeepFilterSupported(): boolean;
 }
 
-/** The feature vesktop_media declares for these extensions */
+/** Which model answers Discord's noise cancellation flag (the slot of its Krisp) */
+export type NoiseModelName = "STANDARD" | "RNNOISE" | "DEEPFILTERNET";
+
+/** The features vesktop_media declares for these extensions */
 const FEATURE = "vesktop_device_options";
+const NOISE_FEATURE = "vesktop_noise_models";
 
 /**
  * The engine, if Vesktop's own engine (vesktop_media, Settings: voiceEngine "vesktop") is the one loaded.
@@ -120,6 +128,31 @@ export function storeCameraOptions(guid: string, options: NativeCameraOptions) {
 /** H.264 / H.265 encoder preference (Settings: nativeVoiceVideoEncoder) */
 export function applyVideoEncoderPreference() {
     vesktopVoice()?.setVideoEncoderPreference?.(Settings.store.nativeVoiceVideoEncoder ?? "auto");
+}
+
+function noiseEngine() {
+    const voice = window.VesktopDiscordVoice;
+    if (voice?.engineKind !== "vesktop" || !voice.features.includes(NOISE_FEATURE)) return null;
+    return voice.engine as VesktopVoiceEngine;
+}
+
+/** Whether the engine has the noise models (vesktop_media only) */
+export function hasNoiseModels() {
+    return noiseEngine() != null;
+}
+
+export function isNoiseModelSupported(model: NoiseModelName) {
+    const engine = noiseEngine();
+    if (!engine) return false;
+    if (model === "RNNOISE") return engine.isRnNoiseSupported();
+    if (model === "DEEPFILTERNET") return engine.isDeepFilterSupported();
+    return true;
+}
+
+/** The model Discord's noise cancellation flag runs (Settings: nativeVoiceNoiseModel, RNNoise by default) */
+export function applyNoiseModel(model: NoiseModelName = Settings.store.nativeVoiceNoiseModel ?? "RNNOISE") {
+    const engine = noiseEngine();
+    if (engine) engine.setNoiseModel(engine.NoiseModel[model]);
 }
 
 export function getVideoEncoders() {

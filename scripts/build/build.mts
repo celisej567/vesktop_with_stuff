@@ -109,7 +109,14 @@ async function buildVesktopMedia() {
 
     await mkdir("./dist/vesktop_media", { recursive: true });
     // + our FFmpeg (H.264 / H.265, x264 / x265 / NVENC), see packages/vesktop_media/scripts/build-ffmpeg.sh
-    for (const file of ["vesktop_media.node", "index.js", "libvesktop_ffmpeg.so"])
+    // + RNNoise and DeepFilterNet (noise suppression), see build-denoise.sh
+    for (const file of [
+        "vesktop_media.node",
+        "index.js",
+        "libvesktop_ffmpeg.so",
+        "libvesktop_rnnoise.so",
+        "libvesktop_deepfilter.so"
+    ])
         await copyNative(`${dir}/build/out/${file}`, `./dist/vesktop_media/${file}`);
 }
 
