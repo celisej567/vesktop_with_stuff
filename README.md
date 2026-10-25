@@ -1,75 +1,55 @@
-# Vesktop
+# Vesktop (with Vesktop Media)
 
-Vesktop is a custom Discord desktop app
+[Vesktop](https://github.com/Vencord/Vesktop) plus its own voice and video engine for Linux. Everything of regular
+Vesktop is still here.
 
-**Main features**:
-- Vencord preinstalled
-- Much more lightweight and faster than the official Discord app
-- Linux Screenshare with sound & wayland
-- Much better privacy, since Discord has no access to your system
+## TODO
 
-**Not yet supported**:
-- Global Keybinds
-- see the [Roadmap](https://github.com/Vencord/Vesktop/issues/324)
+- AMD / Intel hardware encoding (now NVIDIA NVENC or the CPU)
+- AV1 / VP9 encoding (only decoded now)
+- stream bitrate above ~4.2 Mbit/s: the server's limit, not verified whether it can be raised
+- occasional missing voice in a call: cause unknown
+- builds for older distributions (now needs the build machine's glibc)
+- Windows and macOS
 
-![](https://github.com/Vencord/Vesktop/assets/45497981/8608a899-96a9-4027-9725-2cb02ba189fd)
-![](https://github.com/Vencord/Vesktop/assets/45497981/8701e5de-52c4-4346-a990-719cb971642e)
+## What is added
 
-## Installing
+**Vesktop Media**, an own native media engine (built on libwebrtc, `packages/vesktop_media`). Pick it in Vesktop's
+settings → Voice & Video → engine: WebRTC (regular Vesktop), Discord's module (if a Discord client is installed) or
+Vesktop Media.
 
-Visit https://vesktop.dev/install
+With Vesktop Media:
 
-## Building from Source
+- **Go Live**
+  - Source resolution (the window's or screen's own size)
+  - any video and audio bitrate
+  - stream settings also while streaming
+- **Stream audio**
+  - the picked window's app found by itself (KWin), Steam games too
+  - sound of the app's child processes included
+  - audio source changeable while streaming
+- **Cameras**
+  - resolution, fps, autofocus per camera
+  - camera (+ microphone) as a Go Live source
+- **H.264 / H.265**: encoding via NVIDIA NVENC or the CPU (selectable), and decoding
+- **Noise suppression**: RNNoise, DeepFilterNet; quick switch on the call panel
 
-You need to have the following dependencies installed:
-- [Git](https://git-scm.com/downloads)
-- [Node.js](https://nodejs.org/en/download)
-- pnpm: `npm install --global pnpm`
+**Also**: no auto-updater (rebuild to update), `pnpm package --linux pacman` works.
 
-Packaging will create builds in the dist/ folder
+Linux x86-64 only. Without Vesktop Media (no submodule or no build tools) it builds and works as regular Vesktop.
+
+## Building
 
 ```sh
-git clone https://github.com/Vencord/Vesktop
+git clone --recursive <this repository>   # or: git submodule update --init
 cd Vesktop
-
-# Install Dependencies
 pnpm i
-
-# Either run it without packaging
-pnpm start
-
-# Or package (will build packages for your OS)
-pnpm package
-
-# Or only build the Linux Pacman package
-pnpm package --linux pacman
-
-# Or package to a directory only
-pnpm package:dir
+pnpm start                                # builds Vesktop Media too
+pnpm package --linux pacman --x64         # a package (the engine is x86-64 only)
 ```
 
-## Vesktop Media (own voice engine, Linux)
+Vesktop Media needs clang, cmake, ninja, nasm, autotools, cargo and a few development headers; the first build
+downloads and compiles about 2 GB. Details: [packages/vesktop_media/README.md](packages/vesktop_media/README.md),
+[docs](packages/vesktop_media/docs/README.md). `VESKTOP_SKIP_MEDIA=1` builds without it.
 
-`packages/vesktop_media` is a git submodule: an own implementation of Discord's native media engine (voice, cameras, Go
-Live, RNNoise / DeepFilterNet noise suppression). Fetch it with the clone (`git clone --recursive <url>`) or afterwards:
-
-```sh
-git submodule update --init
-```
-
-`pnpm build` builds it on Linux x86-64 when the tools it needs are installed (clang, cmake, ninja, nasm, autotools,
-cargo and a few development headers, listed in [its README](packages/vesktop_media/README.md); the first build downloads
-and compiles about 2 GB of dependencies). Without the submodule or the tools Vesktop is built without it (Settings →
-Voice & Video → engine then offers only WebRTC); `VESKTOP_SKIP_MEDIA=1` skips it on purpose. `pnpm package` also
-builds arm64 packages by default; the module is x86-64 only, add `--x64` (`pnpm package --linux pacman --x64`).
-
-## Building LibVesktop from Source
-
-This is a small C++ helper library Vesktop uses on Linux to emit D-Bus events. By default, prebuilt binaries for x64 and arm64 are used.
-
-If you want to build it from source:
-1. Install build dependencies:
-    - Debian/Ubuntu: `apt install build-essential python3 curl pkg-config libglib2.0-dev`
-    - Fedora: `dnf install @c-development @development-tools python3 curl pkgconf-pkg-config glib2-devel`
-2. Run `pnpm buildLibVesktop`
-3. From now on, building Vesktop will use your own build
+Original Vesktop README: [orig_readme.md](orig_readme.md).
