@@ -50,6 +50,15 @@ interface VesktopVoiceEngine {
     setNoiseModel(model: number): void;
     isRnNoiseSupported(): boolean;
     isDeepFilterSupported(): boolean;
+    /** Windows: the apps with audio; null on Linux (Vesktop's main process lists PipeWire's clients) */
+    vesktopListAudioApps?(): AudioApp[] | null;
+    /** Windows: the app that owns a window (HWND); null on Linux */
+    vesktopWindowAudioApp?(window: string): AudioApp | null;
+}
+
+export interface AudioApp {
+    name: string;
+    pid: number;
 }
 
 /** Which model answers Discord's noise cancellation flag (the slot of its Krisp) */
@@ -76,6 +85,25 @@ export function getPickedSource() {
     } catch {
         return null;
     }
+}
+
+/** The apps whose audio a stream can share: from vesktop_media on Windows, from PipeWire on Linux */
+export function listAudioApps(): Promise<AudioApp[] | null> {
+    const own = vesktopVoice()?.vesktopListAudioApps?.();
+    return own ? Promise.resolve(own) : VesktopNative.voice.listAudioApps();
+}
+
+/**
+ * The audio app of the window being streamed. Windows: the process of the picked window (the Go Live source
+ * "window:<HWND>:0"); Linux: the application the compositor names for the system picker's window
+ */
+export function findPickedWindowApp(goLiveSourceId: string | null): Promise<AudioApp | null> {
+    const engine = vesktopVoice();
+    const hwnd = /^window:(\d+)/.exec(goLiveSourceId ?? "")?.[1];
+    if (hwnd && engine?.vesktopWindowAudioApp) return Promise.resolve(engine.vesktopWindowAudioApp(hwnd));
+    const picked = getPickedSource();
+    if (picked?.sourceType !== "window" || !picked.appId) return Promise.resolve(null);
+    return VesktopNative.voice.findAudioApp(picked.appId);
 }
 
 export function listVideoInputDevices() {

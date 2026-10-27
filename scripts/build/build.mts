@@ -7,7 +7,7 @@
 import { spawnSync } from "child_process";
 import { BuildContext, BuildOptions, context } from "esbuild";
 import { existsSync } from "fs";
-import { copyFile, mkdir, readFile, rename } from "fs/promises";
+import { copyFile, mkdir, readdir, readFile, rename, rm } from "fs/promises";
 
 import vencordDep from "./vencordDep.mjs";
 import { includeDirPlugin } from "./includeDirPlugin.mts";
@@ -42,7 +42,14 @@ async function copyNative(from: string, to: string) {
     const current = await readFile(to).catch(() => null);
     if (current?.equals(data)) return;
     await copyFile(from, `${to}.tmp`);
+    // Windows cannot replace a DLL a running Vesktop has loaded, but it can rename it: move the old one aside
+    if (process.platform === "win32" && current) {
+        await rm(`${to}.old`, { force: true }).catch(() => {});
+        await rename(to, `${to}.old`).catch(() => {});
+    }
     await rename(`${to}.tmp`, to);
+    // gone once nothing has it loaded (it would end up in the package otherwise)
+    if (process.platform === "win32") await rm(`${to}.old`, { force: true }).catch(() => {});
 }
 
 const contexts = [] as BuildContext[];
@@ -89,19 +96,26 @@ async function copyLibVesktop() {
 // libwebrtc. Goes to dist/vesktop_media next to the app's code. Needs clang, cmake, ninja (and downloads its
 // dependencies on the first build); without them Vesktop is built without it. VESKTOP_SKIP_MEDIA=1 skips it
 async function buildVesktopMedia() {
-    if (process.platform !== "linux" || process.env.VESKTOP_SKIP_MEDIA === "1") return;
+    const win = process.platform === "win32";
+    if ((process.platform !== "linux" && !win) || process.env.VESKTOP_SKIP_MEDIA === "1") return;
 
     const dir = "./packages/vesktop_media";
+    const script = win ? `${dir}/scripts/build.ps1` : `${dir}/scripts/build.sh`;
     // a git submodule: empty until `git submodule update --init`
-    if (!existsSync(`${dir}/scripts/build.sh`)) {
+    if (!existsSync(script)) {
         console.warn("packages/vesktop_media is not checked out (git submodule update --init). Building without it");
         return;
     }
     console.log("Building vesktop_media...");
-    const result = spawnSync("sh", [`${dir}/scripts/build.sh`], {
-        stdio: "inherit",
-        env: { ...process.env, BUILD_TYPE: isDev ? "RelWithDebInfo" : "Release" }
-    });
+    const result = win
+        ? spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script], {
+              stdio: "inherit",
+              env: { ...process.env, BUILD_TYPE: isDev ? "RelWithDebInfo" : "Release" }
+          })
+        : spawnSync("sh", [script], {
+              stdio: "inherit",
+              env: { ...process.env, BUILD_TYPE: isDev ? "RelWithDebInfo" : "Release" }
+          });
     if (result.status !== 0) {
         console.warn("Failed to build vesktop_media (see above). Building without Vesktop's own voice engine");
         return;
@@ -109,14 +123,12 @@ async function buildVesktopMedia() {
 
     await mkdir("./dist/vesktop_media", { recursive: true });
     // + our FFmpeg (H.264 / H.265, x264 / x265 / NVENC), see packages/vesktop_media/scripts/build-ffmpeg.sh
-    // + RNNoise and DeepFilterNet (noise suppression), see build-denoise.sh
-    for (const file of [
-        "vesktop_media.node",
-        "index.js",
-        "libvesktop_ffmpeg.so",
-        "libvesktop_rnnoise.so",
-        "libvesktop_deepfilter.so"
-    ])
+    // + RNNoise and DeepFilterNet (noise suppression), see build-denoise.sh. Windows: the FFmpeg DLLs (avcodec, avutil,
+    // swresample, see build-ffmpeg.ps1), vesktop_rnnoise.dll and vesktop_deepfilter.dll
+    const libraries = win
+        ? (await readdir(`${dir}/build/out`)).filter(f => f.endsWith(".dll"))
+        : ["libvesktop_ffmpeg.so", "libvesktop_rnnoise.so", "libvesktop_deepfilter.so"];
+    for (const file of ["vesktop_media.node", "index.js", ...libraries])
         await copyNative(`${dir}/build/out/${file}`, `./dist/vesktop_media/${file}`);
 }
 

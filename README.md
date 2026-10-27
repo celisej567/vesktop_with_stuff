@@ -1,6 +1,6 @@
 # Vesktop (with Vesktop Media)
 
-[Vesktop](https://github.com/Vencord/Vesktop) plus its own voice and video engine for Linux. Everything of regular
+[Vesktop](https://github.com/Vencord/Vesktop) plus its own voice and video engine for Linux and Windows. Everything of regular
 Vesktop is still here.
 
 ## TODO
@@ -10,7 +10,8 @@ Vesktop is still here.
 - stream bitrate above ~4.2 Mbit/s: the server's limit, not verified whether it can be raised
 - occasional missing voice in a call: cause unknown
 - builds for older distributions (now needs the build machine's glibc)
-- Windows and macOS
+- Windows: try in a real call (built and tested in a VM only), camera autofocus, a smaller FFmpeg
+- macOS
 
 ## What is added
 
@@ -25,18 +26,18 @@ With Vesktop Media:
   - any video and audio bitrate
   - stream settings also while streaming
 - **Stream audio**
-  - the picked window's app found by itself (KWin), Steam games too
+  - the picked window's app found by itself (KWin; on Windows the window's process), Steam games too
   - sound of the app's child processes included
   - audio source changeable while streaming
 - **Cameras**
-  - resolution, fps, autofocus per camera
+  - resolution, fps, autofocus (Linux) per camera
   - camera (+ microphone) as a Go Live source
 - **H.264 / H.265**: encoding via NVIDIA NVENC or the CPU (selectable), and decoding
 - **Noise suppression**: RNNoise, DeepFilterNet; quick switch on the call panel
 
 **Also**: no auto-updater (rebuild to update), `pnpm package --linux pacman` works.
 
-Linux x86-64 only. Without Vesktop Media (no submodule or no build tools) it builds and works as regular Vesktop.
+x86-64 only: Linux, Windows 10 (2004 or newer) and 11. Without Vesktop Media (no submodule or no build tools) it builds and works as regular Vesktop.
 
 ## Building
 
@@ -48,7 +49,10 @@ pnpm start                                # builds Vesktop Media too
 pnpm package --linux pacman --x64         # a package (the engine is x86-64 only)
 ```
 
-Vesktop Media needs clang, cmake, ninja, nasm, autotools, cargo and a few development headers; the first build
+Windows: the same commands; Vesktop Media then needs Visual Studio 2022 (or its Build Tools) with the C++ workload,
+LLVM 22, CMake, Ninja and Rust ([details](packages/vesktop_media/docs/11-windows.md)).
+
+On Linux Vesktop Media needs clang, cmake, ninja, nasm, autotools, cargo and a few development headers; the first build
 downloads and compiles about 2 GB. Details: [packages/vesktop_media/README.md](packages/vesktop_media/README.md),
 [docs](packages/vesktop_media/docs/README.md). `VESKTOP_SKIP_MEDIA=1` builds without it.
 

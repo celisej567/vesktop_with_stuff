@@ -38,9 +38,10 @@ import {
     useStateFromStores
 } from "@vencord/types/webpack/common";
 import {
+    findPickedWindowApp,
     getCameraCapabilities,
-    getPickedSource,
     getStoredCameraOptions,
+    listAudioApps,
     listAudioInputDevices,
     vesktopVoice
 } from "renderer/nativeVoiceExtensions";
@@ -144,7 +145,7 @@ function AudioSourcePicker({
     extra?: { name: string; pid: number } | null;
 }) {
     const [refreshSignal, refresh] = useForceUpdater(true);
-    const [apps, _, loading] = useAwaiter(() => VesktopNative.voice.listAudioApps(), {
+    const [apps, _, loading] = useAwaiter(() => listAudioApps(), {
         fallbackValue: [],
         deps: [refreshSignal]
     });
@@ -221,14 +222,7 @@ function StreamSettingsModal({
     const [audioSource, setAudioSource] = useState<NativeAudioSource>(running ? running.audioSource : SYSTEM_AUDIO);
     const [touched, setTouched] = useState(running != null);
     // A window: its application's audio by default (vesktop_media knows the window's app); otherwise Entire System
-    const [windowApp] = useAwaiter(
-        async () => {
-            const picked = getPickedSource();
-            if (picked?.sourceType !== "window" || !picked.appId) return null;
-            return VesktopNative.voice.findAudioApp(picked.appId);
-        },
-        { fallbackValue: null }
-    );
+    const [windowApp] = useAwaiter(() => findPickedWindowApp(ownStreamSourceId()), { fallbackValue: null });
     useEffect(() => {
         if (windowApp && !touched) setAudioSource(windowApp.pid);
     }, [windowApp]);
@@ -450,6 +444,16 @@ export function openRunningStreamSettings(guildId: string | null, audioSource: N
 }
 
 /** Resolves to the chosen audio source if the user wants to go live, or undefined if cancelled */
+/** The Go Live source of our own stream connection ("window:<HWND>:0", "screen:0:0", "prepicked:0"), if one runs */
+function ownStreamSourceId(): string | null {
+    let id: string | null = null;
+    MediaEngineStore.getMediaEngine().eachConnection((connection: any) => {
+        if (connection.context === "stream" && connection.goLiveSourceIdentifier != null)
+            id = connection.goLiveSourceIdentifier;
+    });
+    return id;
+}
+
 export function openNativeStreamSettings(guildId: string | null) {
     return openModalPromise<{ audioSource: NativeAudioSource } | undefined>(
         (props, done) => (
@@ -466,8 +470,7 @@ export function openNativeStreamSettings(guildId: string | null) {
 
 let cachedAudioApps: { name: string; pid: number }[] = [];
 function refreshAudioApps() {
-    VesktopNative.voice
-        .listAudioApps()
+    listAudioApps()
         .then(apps => (cachedAudioApps = apps ?? []))
         .catch(() => {});
 }
