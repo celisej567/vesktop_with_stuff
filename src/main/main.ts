@@ -66,6 +66,18 @@ function init() {
     disabledFeatures.add("HardwareMediaKeyHandling");
     disabledFeatures.add("MediaSessionService");
 
+    // The voice engine (vesktop_media / discord_voice) runs in the renderer. When the window is in the background
+    // (behind the game being streamed), Chromium lowers that process' priority and Windows puts it on efficiency
+    // cores with coalesced timers: encoding, pacing and transport feedback then stall for seconds. Same as the
+    // official client
+    disabledFeatures.add("UseEcoQoSForBackgroundProcess");
+    disabledFeatures.add("IntensiveWakeUpThrottling");
+    disabledFeatures.add("AllowAggressiveThrottlingWithWebSocket");
+    if (process.platform === "win32") {
+        app.commandLine.appendSwitch("disable-background-timer-throttling");
+        app.commandLine.appendSwitch("disable-renderer-backgrounding");
+    }
+
     if (isLinux) {
         // This is needed to fix washed out colours - https://github.com/electron/electron/issues/49566
         // Supposed to be fixed already according to comments there, but it's just not lol, I can repro on Electron 43.0.0

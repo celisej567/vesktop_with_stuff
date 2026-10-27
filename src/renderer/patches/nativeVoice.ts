@@ -163,10 +163,11 @@ addPatch({
                     replace: "($self.isLinux||(0,$1.isLinux)())"
                 },
                 {
-                    // Content was picked in the system picker and the stream is about to start. We show our own
-                    // stream settings with a preview afterwards, see onStreamCreate
-                    match: /(\i=\i\.useCallback\(\(\)=>\{)(?=\i\(\{id:\("gamescope"===)/,
-                    replace: "$1$self.onModalContentPicked();"
+                    // The stream is about to start: content picked in the system picker (Linux) or a screen, window
+                    // or game picked in the modal (Windows). We show our own stream settings with a preview
+                    // afterwards, see onStreamCreate
+                    match: /(\i=\i\.useCallback\(async (\i)=>\{)(?=\i\.\i\.updateSetting\(\i\.notifyFriends\))/,
+                    replace: "$1$self.onModalContentPicked($2);"
                 },
                 // Quality is picked in our stream settings instead. Remove preset info, SD/HD, the quality
                 // settings button and the Nitro upsell from the footer, keep the pick / Go Live button
@@ -411,7 +412,9 @@ addPatch({
     streamAudioSource: SYSTEM_AUDIO as NativeAudioSource,
     awaitingStreamSettings: false,
 
-    onModalContentPicked() {
+    onModalContentPicked(source: { id?: string }) {
+        // cameras ("Devices") get the device settings instead, see onStreamStart
+        if (source?.id?.startsWith("camera:")) return;
         this.streamAudioSource = SYSTEM_AUDIO;
         this.awaitingStreamSettings = true;
     },
