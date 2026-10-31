@@ -15,6 +15,7 @@ import {
     screen,
     session
 } from "electron";
+import { appendFileSync } from "fs";
 import { join } from "path";
 import { IpcCommands, IpcEvents } from "shared/IpcEvents";
 import { isTruthy } from "shared/utils/guards";
@@ -24,7 +25,7 @@ import type { SettingsStore } from "shared/utils/SettingsStore";
 import { createAboutWindow } from "./about";
 import { initArRPC } from "./arrpc";
 import { CommandLine } from "./cli";
-import { BrowserUserAgent, DEFAULT_HEIGHT, DEFAULT_WIDTH, MIN_HEIGHT, MIN_WIDTH } from "./constants";
+import { BrowserUserAgent, DATA_DIR, DEFAULT_HEIGHT, DEFAULT_WIDTH, MIN_HEIGHT, MIN_WIDTH } from "./constants";
 import { isNativeVoiceEnabled } from "./discordVoice";
 import { AppEvents } from "./events";
 import { sendRendererCommand } from "./ipcCommands";
@@ -517,6 +518,22 @@ export async function createWindows() {
         }
     });
 
-    mainWin.webContents.on("render-process-gone", (event, details) => console.log(details));
+    mainWin.webContents.on("render-process-gone", (event, details) => {
+        console.log(details);
+        // The voice engine runs in the renderer: put the end of the process in its log, after whatever its crash
+        // handler wrote (the minidump, when there is one, is in the Crashpad folder)
+        try {
+            // local time, as the module's own lines
+            const now = new Date();
+            const time = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .replace("T", " ")
+                .replace("Z", "");
+            appendFileSync(
+                join(DATA_DIR, "logs", "vesktop_media.log"),
+                `[${time}] [E] vesktop: window process gone: ${details.reason}, exit code ${details.exitCode}\n`
+            );
+        } catch {}
+    });
     initArRPC();
 }

@@ -1,0 +1,42 @@
+diff --git a/src/process/index.js b/src/process/index.js
+index 4a4d9ddc55870510a974c344996b76c9270e7eda..ba5633e7bdd7e671cfb1b7cc368cc8ff60358ea8 100644
+--- a/src/process/index.js
++++ b/src/process/index.js
+@@ -90,7 +90,20 @@ export default class ProcessServer {
+     await this.loadDB()
+   }
+ 
++  // One scan at a time: a process list that takes longer than the interval does not pile up more of them
+   async scan() {
++    if (this.scanning) return;
++    this.scanning = true;
++    try {
++      await this.scanOnce();
++    } catch (e) {
++      log('scan failed:', e?.message ?? e);
++    } finally {
++      this.scanning = false;
++    }
++  }
++
++  async scanOnce() {
+     // const startTime = performance.now();
+     const processes = await Native.getProcesses();
+     const ids = [];
+diff --git a/src/process/native/win32.js b/src/process/native/win32.js
+index 271549f2943e5b2101a42619a9fbce68d135059d..4db716b4435a2075bb876b31c446a4059da1f341 100644
+--- a/src/process/native/win32.js
++++ b/src/process/native/win32.js
+@@ -8,7 +8,11 @@ export async function getProcesses() {
+     '-NoProfile',
+     '-Command',
+     'Get-CimInstance Win32_Process | Select-Object ProcessId,ExecutablePath,CommandLine | ConvertTo-Json -Compress'
+-  ]);
++  ], {
++    windowsHide: true,
++    maxBuffer: 64 * 1024 * 1024,
++    timeout: 30000, // a PowerShell that hangs is killed, not left behind
++  });
+ 
+   const rows = JSON.parse(stdout);
+   const list = Array.isArray(rows) ? rows : [rows]; // single result isn't wrapped in an array

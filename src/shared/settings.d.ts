@@ -51,8 +51,11 @@ export interface Settings {
     nativeVoiceModulePath?: string;
     /** @deprecated replaced by voiceEngine "vesktop" (migrated on start-up) */
     nativeVoiceOwnEngine?: boolean;
-    /** vesktop_media: H.264 / H.265 encoder, "auto" (NVIDIA first), "hardware" (NVENC) or "software" (x264 / x265) */
-    nativeVoiceVideoEncoder?: "auto" | "hardware" | "software";
+    /**
+     * vesktop_media: H.264 / H.265 encoder. "auto" (hardware first), "hardware" (any GPU encoder), "software"
+     * (x264 / x265), or a GPU encoder first: "nvenc" (NVIDIA), "amf" (AMD, Windows), "vaapi" (AMD / Intel, Linux)
+     */
+    nativeVoiceVideoEncoder?: "auto" | "hardware" | "software" | "nvenc" | "amf" | "vaapi";
     /** vesktop_media: the model behind Discord's noise cancellation flag: RNNoise (default) or DeepFilterNet */
     nativeVoiceNoiseModel?: "RNNOISE" | "DEEPFILTERNET";
     /** vesktop_media: capture options per camera (by device guid), see renderer/nativeVoiceExtensions.ts */

@@ -45,7 +45,13 @@ interface VesktopVoiceEngine {
     setVideoInputDeviceOptions(deviceId: string, options: NativeCameraOptions): void;
     getNativeScreenSharePickedSource(): { sourceType: "screen" | "window"; appId: string } | null;
     setVideoEncoderPreference(preference: string): void;
-    getVideoEncoders(): { h264: string; h265: string; preference: string };
+    getVideoEncoders(): {
+        h264: string;
+        h265: string;
+        preference: string;
+        /** every encoder that opens here, in order of preference */
+        available?: { name: string; family: VideoEncoderFamily; codec: "h264" | "h265" }[];
+    };
     NoiseModel: Record<NoiseModelName, number>;
     setNoiseModel(model: number): void;
     isRnNoiseSupported(): boolean;
@@ -60,6 +66,9 @@ export interface AudioApp {
     name: string;
     pid: number;
 }
+
+/** Who makes an encoder: NVIDIA (NVENC), AMD on Windows (AMF), AMD / Intel on Linux (VA-API), the CPU */
+export type VideoEncoderFamily = "nvenc" | "amf" | "vaapi" | "software";
 
 /** Which model answers Discord's noise cancellation flag (the slot of its Krisp) */
 export type NoiseModelName = "STANDARD" | "RNNOISE" | "DEEPFILTERNET";

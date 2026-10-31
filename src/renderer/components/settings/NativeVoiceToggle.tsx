@@ -74,15 +74,27 @@ export const NativeVoiceToggle: SettingsComponent = ({ settings }) => {
     );
 };
 
-// vesktop_media: which encoder H.264 / H.265 use (VP8 is always libvpx)
+const FAMILY_LABELS = {
+    nvenc: "NVIDIA (NVENC)",
+    amf: "AMD (AMF)",
+    vaapi: "AMD / Intel (VA-API)"
+} as const;
+
+// vesktop_media: which encoder H.264 / H.265 use (VP8 is always libvpx). The GPU encoders offered are the ones that
+// open on this machine
 const VideoEncoderPicker: SettingsComponent = ({ settings }) => {
     const encoders = getVideoEncoders();
     const value = settings.nativeVoiceVideoEncoder ?? "auto";
+    const families = (Object.keys(FAMILY_LABELS) as (keyof typeof FAMILY_LABELS)[]).filter(
+        family => encoders?.available?.some(e => e.family === family) || value === family
+    );
     const options = [
-        { label: "Automatic (NVIDIA NVENC if available, else the CPU)", value: "auto" },
-        { label: "Hardware (NVIDIA NVENC)", value: "hardware" },
+        { label: "Automatic (a GPU encoder if one works, else the CPU)", value: "auto" },
+        ...families.map(family => ({ label: FAMILY_LABELS[family], value: family })),
         { label: "Software (CPU: x264 / x265)", value: "software" }
     ];
+    // the old "hardware" choice: any GPU encoder
+    if (value === "hardware") options.splice(1, 0, { label: "Any GPU encoder", value: "hardware" });
 
     return (
         <>
@@ -90,7 +102,7 @@ const VideoEncoderPicker: SettingsComponent = ({ settings }) => {
             <Select
                 options={options}
                 isSelected={v => v === value}
-                select={(v: "auto" | "hardware" | "software") => {
+                select={(v: NonNullable<typeof settings.nativeVoiceVideoEncoder>) => {
                     settings.nativeVoiceVideoEncoder = v;
                     applyVideoEncoderPreference();
                 }}

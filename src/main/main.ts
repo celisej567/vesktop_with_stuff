@@ -10,7 +10,7 @@ import "./ipc";
 import "./userAssets";
 import "./vesktopProtocol";
 
-import { app, BrowserWindow, nativeTheme } from "electron";
+import { app, BrowserWindow, crashReporter, nativeTheme } from "electron";
 
 import { DATA_DIR } from "./constants";
 import { createFirstLaunchTour } from "./firstLaunch";
@@ -22,6 +22,10 @@ import { setAsDefaultProtocolClient } from "./utils/setAsDefaultProtocolClient";
 import { isDeckGameMode } from "./utils/steamOS";
 
 console.log("Vesktop v" + app.getVersion());
+
+// Minidumps of crashed processes (the window's, where the voice engine runs, included) in <data>/Crashpad, kept
+// locally: nothing is uploaded
+crashReporter.start({ uploadToServer: false });
 
 // Make the Vencord files use our DATA_DIR
 process.env.VENCORD_USER_DATA_DIR = DATA_DIR;
