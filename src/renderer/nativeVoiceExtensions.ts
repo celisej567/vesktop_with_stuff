@@ -60,6 +60,14 @@ interface VesktopVoiceEngine {
     vesktopListAudioApps?(): AudioApp[] | null;
     /** Windows: the app that owns a window (HWND); null on Linux */
     vesktopWindowAudioApp?(window: string): AudioApp | null;
+    /** Windows 7 only (null elsewhere): the stream shares what plays into VB-CABLE, see soundshareCable */
+    vesktopSoundshareCable?(): SoundshareCable | null;
+}
+
+/** installed: VB-CABLE is there; isDefault: "CABLE Input" is the default playback device */
+export interface SoundshareCable {
+    installed: boolean;
+    isDefault: boolean;
 }
 
 export interface AudioApp {
@@ -100,6 +108,18 @@ export function getPickedSource() {
 export function listAudioApps(): Promise<AudioApp[] | null> {
     const own = vesktopVoice()?.vesktopListAudioApps?.();
     return own ? Promise.resolve(own) : VesktopNative.voice.listAudioApps();
+}
+
+/**
+ * Windows 7 has no per-app audio capture: there the stream shares what plays into VB-CABLE, a virtual audio device.
+ * null on every other system
+ */
+export function soundshareCable(): SoundshareCable | null {
+    try {
+        return vesktopVoice()?.vesktopSoundshareCable?.() ?? null;
+    } catch {
+        return null;
+    }
 }
 
 /**

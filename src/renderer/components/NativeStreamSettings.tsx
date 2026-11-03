@@ -43,6 +43,7 @@ import {
     getStoredCameraOptions,
     listAudioApps,
     listAudioInputDevices,
+    soundshareCable,
     vesktopVoice
 } from "renderer/nativeVoiceExtensions";
 import { State, useVesktopState } from "renderer/settings";
@@ -134,6 +135,36 @@ function BitrateSettings() {
     );
 }
 
+/** Windows 7: what has to be set up for the stream to have audio at all (it shares what plays into VB-CABLE) */
+function CableNotice({ refreshSignal }: { refreshSignal: unknown }) {
+    const [cable, setCable] = useState(soundshareCable);
+    useEffect(() => setCable(soundshareCable()), [refreshSignal]);
+    if (!cable) return null;
+
+    const text = !cable.installed ? (
+        <>
+            Windows 7 cannot capture the audio of single apps. Stream audio needs{" "}
+            <a href="https://vb-audio.com/Cable/" target="_blank" rel="noreferrer">
+                VB-CABLE
+            </a>
+            , a free virtual audio device: install it, restart the computer, then follow the steps shown here.
+        </>
+    ) : !cable.isDefault ? (
+        <>
+            The stream shares what plays into VB-CABLE. In the Windows sound settings, make "CABLE Input" the default
+            playback device, and on the Recording tab enable "Listen to this device" for "CABLE Output" with your
+            speakers, so you still hear your apps. In Voice & Video, set Vesktop's Output Device to your speakers, or
+            the call is streamed too.
+        </>
+    ) : (
+        <>
+            The stream shares everything that plays into VB-CABLE. Keep Vesktop's Output Device (Voice & Video) on your
+            speakers, or the call is streamed too.
+        </>
+    );
+    return <Paragraph className={Margins.top8}>{text}</Paragraph>;
+}
+
 function AudioSourcePicker({
     audioSource,
     setAudioSource,
@@ -178,6 +209,7 @@ function AudioSourcePicker({
                             Failed to list applications (venmic is unavailable). You can still share all system audio.
                         </Paragraph>
                     )}
+                    <CableNotice refreshSignal={refreshSignal} />
                 </section>
             </div>
             <div className={cl("settings-buttons")}>
