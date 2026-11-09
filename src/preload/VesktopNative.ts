@@ -110,6 +110,9 @@ export const VesktopNative = {
         copyImage: (imageBuffer: Uint8Array, imageSrc: string) =>
             invoke<void>(IpcEvents.CLIPBOARD_COPY_IMAGE, imageBuffer, imageSrc)
     },
+    startupTiming: {
+        log: (at: number, message: string) => invoke<void>(IpcEvents.STARTUP_TIMING_LOG, at, message)
+    },
     debug: {
         launchGpu: () => invoke<void>(IpcEvents.DEBUG_LAUNCH_GPU),
         launchWebrtcInternals: () => invoke<void>(IpcEvents.DEBUG_LAUNCH_WEBRTC_INTERNALS)

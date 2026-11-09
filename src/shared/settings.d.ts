@@ -56,6 +56,12 @@ export interface Settings {
      * (x264 / x265), or a GPU encoder first: "nvenc" (NVIDIA), "amf" (AMD, Windows), "vaapi" (AMD / Intel, Linux)
      */
     nativeVoiceVideoEncoder?: "auto" | "hardware" | "software" | "nvenc" | "amf" | "vaapi";
+    /**
+     * vesktop_media: tuning of the H.264 / H.265 encoder. preset: "auto" (ours), "speed", "balanced", "quality";
+     * aq (adaptive quantization): "auto" (the encoder's default), "on", "off"; bufferMs: the rate control buffer in
+     * ms, 0 = ours (500)
+     */
+    nativeVoiceVideoTuning?: { preset?: string; aq?: string; bufferMs?: number };
     /** vesktop_media: the model behind Discord's noise cancellation flag: RNNoise (default) or DeepFilterNet */
     nativeVoiceNoiseModel?: "RNNOISE" | "DEEPFILTERNET";
     /** vesktop_media: capture options per camera (by device guid), see renderer/nativeVoiceExtensions.ts */

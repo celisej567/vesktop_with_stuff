@@ -8,6 +8,7 @@ import "./settings.css";
 
 import { classNameFactory } from "@vencord/types/api/Styles";
 import { BaseText, Divider, ErrorBoundary } from "@vencord/types/components";
+import { Alerts, useEffect } from "@vencord/types/webpack/common";
 import { ComponentType } from "react";
 import { WebRTCIPHandlingPolicyPicker } from "renderer/components/settings/WebRTCIPHandlingPolicyPicker";
 import { getValueAndOnChange, Settings, useSettings } from "renderer/settings";
@@ -201,8 +202,27 @@ function SettingsSections() {
     return <>{sections}</>;
 }
 
+// Chromium reads these from the command line at start-up (main.ts), so a change only applies after a restart
+const RestartRequiredKeys = ["hardwareAcceleration", "hardwareVideoAcceleration"] as const;
+const LaunchValues = RestartRequiredKeys.map(key => Settings.store[key]);
+
+function promptRestartIfNeeded() {
+    if (RestartRequiredKeys.every((key, i) => Settings.store[key] === LaunchValues[i])) return;
+
+    Alerts.show({
+        title: "Restart required",
+        body: "Vesktop needs to be restarted to apply the hardware acceleration settings.",
+        confirmText: "Restart now",
+        cancelText: "Later",
+        onConfirm: () => VesktopNative.app.relaunch()
+    });
+}
+
 export default ErrorBoundary.wrap(
     function SettingsUI() {
+        // Asked when leaving the page, so toggling both switches gives one prompt
+        useEffect(() => promptRestartIfNeeded, []);
+
         return (
             <section>
                 <OutdatedVesktopWarning />

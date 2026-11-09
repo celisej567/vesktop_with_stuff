@@ -32,6 +32,7 @@ import { sendRendererCommand } from "./ipcCommands";
 import { darwinURL } from "./main";
 import { Settings, State, VencordSettings } from "./settings";
 import { createSplashWindow, updateSplashMessage } from "./splash";
+import { startupMark, traceStartupWindow } from "./startupTiming";
 import { destroyTray, initTray } from "./tray";
 import { clearData } from "./utils/clearData";
 import { makeLinksOpenExternally } from "./utils/makeLinksOpenExternally";
@@ -408,6 +409,7 @@ function createMainWindow() {
     removeVencordSettingsListeners();
 
     const win = (mainWin = new BrowserWindow(buildBrowserWindowOptions()));
+    traceStartupWindow(win);
 
     win.setMenuBarVisibility(false);
     if (process.platform === "darwin" && Settings.store.nativeTitleBar) win.setWindowButtonVisibility(false);
@@ -457,9 +459,14 @@ export function loadUrl(uri: string | undefined) {
     const subdomain = branch === "canary" || branch === "ptb" ? `${branch}.` : "";
 
     // we do not rely on 'did-finish-load' because it fires even if loadURL fails which triggers early detruction of the splash
+    const url = `https://${subdomain}discord.com/${uri ? new URL(uri).pathname.slice(1) || "app" : "app"}`;
+    startupMark("main", `loadURL ${url}`);
     mainWin
-        .loadURL(`https://${subdomain}discord.com/${uri ? new URL(uri).pathname.slice(1) || "app" : "app"}`)
-        .then(() => AppEvents.emit("appLoaded"))
+        .loadURL(url)
+        .then(() => {
+            startupMark("main", "loadURL resolved, splash closes");
+            AppEvents.emit("appLoaded");
+        })
         .catch(error => retryUrl(error.url, error.code));
 }
 
@@ -481,8 +488,10 @@ export async function createWindows() {
         if (isDeckGameMode) splash.setFullScreen(true);
     }
 
+    startupMark("main", "creating windows");
     await ensureVencordFiles();
     runVencordMain();
+    startupMark("main", "Vencord files ready, Vencord main loaded");
 
     mainWin = createMainWindow();
 

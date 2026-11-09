@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./startupTiming";
 import "./cli";
 import "./updater";
 import "./ipc";
@@ -55,6 +56,10 @@ function init() {
             if (isLinux) {
                 enabledFeatures.add("AcceleratedVideoDecodeLinuxGL");
                 enabledFeatures.add("AcceleratedVideoDecodeLinuxZeroCopyGL");
+                // Chromium skips VA-API on NVIDIA (nvidia-vaapi-driver) unless told otherwise. HEVC has no software
+                // decoder in Chromium, so phone videos in embeds then play audio only
+                enabledFeatures.add("VaapiOnNvidiaGPUs");
+                enabledFeatures.add("VaapiIgnoreDriverChecks");
             }
         }
     }

@@ -45,6 +45,7 @@ interface VesktopVoiceEngine {
     setVideoInputDeviceOptions(deviceId: string, options: NativeCameraOptions): void;
     getNativeScreenSharePickedSource(): { sourceType: "screen" | "window"; appId: string } | null;
     setVideoEncoderPreference(preference: string): void;
+    setVideoEncoderTuning?(tuning: { preset: string; aq: string; bufferMs: number }): void;
     getVideoEncoders(): {
         h264: string;
         h265: string;
@@ -185,6 +186,12 @@ export function storeCameraOptions(guid: string, options: NativeCameraOptions) {
 /** H.264 / H.265 encoder preference (Settings: nativeVoiceVideoEncoder) */
 export function applyVideoEncoderPreference() {
     vesktopVoice()?.setVideoEncoderPreference?.(Settings.store.nativeVoiceVideoEncoder ?? "auto");
+}
+
+/** H.264 / H.265 encoder tuning (Settings: nativeVoiceVideoTuning); a running stream takes it at once */
+export function applyVideoEncoderTuning() {
+    const { preset = "auto", aq = "auto", bufferMs = 0 } = Settings.store.nativeVoiceVideoTuning ?? {};
+    vesktopVoice()?.setVideoEncoderTuning?.({ preset, aq, bufferMs });
 }
 
 function noiseEngine() {

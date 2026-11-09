@@ -15,7 +15,6 @@ import { Logger } from "@vencord/types/utils";
 import { onceReady } from "@vencord/types/webpack";
 import { FluxDispatcher, MediaEngineStore, React, UserStore } from "@vencord/types/webpack/common";
 import { SelectedCameraOptions } from "renderer/components/CameraOptionsEditor";
-import { NoiseModelPicker, noiseDescription } from "renderer/components/NoiseModelPicker";
 import {
     addStreamAudioSourceMenu,
     getNativeStreamQuality,
@@ -25,10 +24,12 @@ import {
     openRunningStreamSettings,
     SYSTEM_AUDIO
 } from "renderer/components/NativeStreamSettings";
+import { noiseDescription, NoiseModelPicker } from "renderer/components/NoiseModelPicker";
 import {
     applyNoiseModel,
     applyStoredCameraOptions,
     applyVideoEncoderPreference,
+    applyVideoEncoderTuning,
     hasNoiseModels,
     isNoiseModelSupported,
     setCameraOptions,
@@ -134,7 +135,7 @@ addPatch({
             find: "getMediaEngine().getDesktopSource(",
             predicate: () => voice != null,
             replacement: {
-                match: /if\((\i)\.isPlatformEmbedded\)(?=\(0,\i\.openModalLazy\))/,
+                match: /if\((\i)\.isPlatformEmbedded\)(?=\(0,\i\.\i\)\(async)/,
                 replace: "if($1.isPlatformEmbedded||true)"
             }
         },
@@ -157,10 +158,20 @@ addPatch({
                     match: /(\i\.\i)\.window\.getMediaSourceId\?\.\(\)/,
                     replace: "$1?.window?.getMediaSourceId?.()"
                 },
+                // makes it use the system picker on Linux (presentNativeScreenSharePicker("screen" | "window")).
+                // isLinux() is minified (like isMac / isWindows next to it), so each of its three calls is matched by
+                // what surrounds it
                 {
-                    // makes it use the system picker on Linux (presentNativeScreenSharePicker("screen" | "window"))
-                    match: /\(0,(\i)\.isLinux\)\(\)/g,
-                    replace: "($self.isLinux||(0,$1.isLinux)())"
+                    match: /(getUseSystemScreensharePicker\(\)&&)\(0,(\i\.\i)\)\(\)/,
+                    replace: "$1($self.isLinux||(0,$2)())"
+                },
+                {
+                    match: /(getUseGamescopeCapture\(\)\)&&\()\(0,(\i\.\i)\)\(\)/,
+                    replace: "$1($self.isLinux||(0,$2)())"
+                },
+                {
+                    match: /(=!)\(0,(\i\.\i)\)\(\)(?=,\i="confirm"===)/,
+                    replace: "$1($self.isLinux||(0,$2)())"
                 },
                 {
                     // The stream is about to start: content picked in the system picker (Linux) or a screen, window
@@ -194,7 +205,7 @@ addPatch({
             find: "Attempted to observe candidate games on a non-desktop platform",
             predicate: () => voice != null,
             replacement: {
-                match: /(if\(!\(0,\i\.isDesktop\)\(\)\))throw Error\("Attempted to (?:stop )?observ\w+ candidate games on a non-desktop platform"\)/g,
+                match: /(if\(!\(0,\i\.\i\)\(\)\))throw Error\("Attempted to (?:stop )?observ\w+ candidate games on a non-desktop platform"\)/g,
                 replace: "$1return"
             }
         },
@@ -220,7 +231,7 @@ addPatch({
             find: '"change-windows"',
             predicate: () => voice != null,
             replacement: {
-                match: /(getUseSystemScreensharePicker\(\)&&)\(0,\i\.isLinux\)\(\)/,
+                match: /(getUseSystemScreensharePicker\(\)&&)\(0,\i\.\i\)\(\)/,
                 replace: "$1$self.isLinux"
             }
         },
@@ -277,14 +288,15 @@ addPatch({
         },
         {
             // vesktop_media only: at start-up Discord switches noise cancellation off in its saved settings when the
-            // engine does not declare Krisp's feature (`nA({noiseCancellation:!1})`). Ours is the same flag, so the
-            // choice of RNNoise / DeepFilterNet was gone after a restart (the suppression was off too: Discord saves
-            // it off while noise cancellation is on) and the setting showed "None"
+            // engine does not declare Krisp's feature (`isWeb()&&nA({noiseCancellation:!1})`, isWeb is minified in
+            // newer builds). Ours is the same flag, so the choice of RNNoise / DeepFilterNet was gone after a restart
+            // (the suppression was off too: Discord saves it off while noise cancellation is on) and the setting
+            // showed "None"
             find: "noiseCancellation:!1}),(0,",
             predicate: () => hasNoiseModels(),
             replacement: {
-                match: /\(0,(\i)\.isWeb\)\(\)&&(\i)\(\{noiseCancellation:!1\}\)/,
-                replace: "(0,$1.isWeb)()&&!$self.keepsNoiseCancellation()&&$2({noiseCancellation:!1})"
+                match: /\(0,(\i\.\i)\)\(\)&&(\i)\(\{noiseCancellation:!1\}\)/,
+                replace: "(0,$1)()&&!$self.keepsNoiseCancellation()&&$2({noiseCancellation:!1})"
             }
         },
         {
@@ -308,7 +320,7 @@ addPatch({
                 },
                 {
                     // the text under it, which advertises Krisp
-                    match: /(\(0,\i\.jsx\)\(\i\.\i,\{variant:"text-sm\/normal",children:)\i(\}\)(?=,\(0,\i\.jsx\)\(\i\.\i,\{title:))/,
+                    match: /(\(0,\i\.jsx\)\(\i\.\i,\{variant:"(?:text|body)-sm\/normal",children:)\i(\}\)(?=,\(0,\i\.jsx\)\(\i\.\i,\{title:))/,
                     replace: "$1$self.noiseDescription()$2"
                 },
                 {
@@ -323,7 +335,7 @@ addPatch({
             find: "getUseSystemScreensharePicker(){",
             predicate: () => voice != null && navigator.platform.startsWith("Linux"),
             replacement: {
-                match: /(getUseSystemScreensharePicker\(\)\{.{0,120}?=)\(0,\i\.isLinux\)\(\)/,
+                match: /(getUseSystemScreensharePicker\(\)\{.{0,120}?=)\(0,\i\.\i\)\(\)/,
                 replace: "$1!0"
             }
         }
@@ -594,6 +606,7 @@ if (voice) {
             FluxDispatcher.subscribe("STREAM_STOP", onOwnStreamEnd);
             applyStoredCameraOptions();
             applyVideoEncoderPreference();
+            applyVideoEncoderTuning();
             applyNoiseModel();
         }
     });

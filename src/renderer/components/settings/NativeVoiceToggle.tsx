@@ -8,8 +8,8 @@
 // client was found at start-up) or Vesktop's own vesktop_media. See main/discordVoice.ts
 
 import { Paragraph } from "@vencord/types/components";
-import { Alerts, Select } from "@vencord/types/webpack/common";
-import { applyVideoEncoderPreference, getVideoEncoders } from "renderer/nativeVoiceExtensions";
+import { Alerts, Select, TextInput, useEffect, useState } from "@vencord/types/webpack/common";
+import { applyVideoEncoderPreference, applyVideoEncoderTuning, getVideoEncoders } from "renderer/nativeVoiceExtensions";
 
 import { SimpleErrorBoundary } from "../SimpleErrorBoundary";
 import { SettingsComponent } from "./Settings";
@@ -70,6 +70,7 @@ export const NativeVoiceToggle: SettingsComponent = ({ settings }) => {
                 <Paragraph key={line}>{line}</Paragraph>
             ))}
             {engines.active === "vesktop" && <VideoEncoderPicker settings={settings} />}
+            {engines.active === "vesktop" && <VideoEncoderTuning settings={settings} />}
         </SimpleErrorBoundary>
     );
 };
@@ -115,6 +116,62 @@ const VideoEncoderPicker: SettingsComponent = ({ settings }) => {
                     the next camera or stream.
                 </Paragraph>
             )}
+        </>
+    );
+};
+
+const PRESETS = [
+    { label: "Automatic (Vesktop's default)", value: "auto" },
+    { label: "Speed (least GPU / CPU, blurrier)", value: "speed" },
+    { label: "Balanced", value: "balanced" },
+    { label: "Quality (sharpest, most GPU / CPU)", value: "quality" }
+];
+
+const AQ_MODES = [
+    { label: "Automatic (the encoder's default)", value: "auto" },
+    { label: "On (more bits where the eye notices)", value: "on" },
+    { label: "Off", value: "off" }
+];
+
+// vesktop_media: preset, adaptive quantization and rate control buffer of the H.264 / H.265 encoder. A running
+// stream reopens its encoder with them (a key frame); an encoder that does not open with them opens without
+const VideoEncoderTuning: SettingsComponent = ({ settings }) => {
+    const tuning = settings.nativeVoiceVideoTuning ?? {};
+    const update = (change: typeof tuning) => {
+        settings.nativeVoiceVideoTuning = { ...settings.nativeVoiceVideoTuning, ...change };
+        applyVideoEncoderTuning();
+    };
+    // the buffer is applied once typing stops: every value reopens a running encoder (a key frame each)
+    const [buffer, setBuffer] = useState(tuning.bufferMs ? String(tuning.bufferMs) : "");
+    useEffect(() => {
+        const n = Math.floor(Number(buffer));
+        const bufferMs = Number.isFinite(n) && n > 0 ? Math.min(n, 5000) : 0;
+        if (bufferMs === (tuning.bufferMs ?? 0)) return;
+        const timer = setTimeout(() => update({ bufferMs }), 1000);
+        return () => clearTimeout(timer);
+    }, [buffer]);
+    const select = (options: typeof PRESETS, value: string, set: (v: string) => void) => (
+        <Select options={options} isSelected={v => v === value} select={set} serialize={String} closeOnSelect />
+    );
+
+    return (
+        <>
+            <Paragraph>Encoder preset (H.264 / H.265):</Paragraph>
+            {select(PRESETS, tuning.preset ?? "auto", preset => update({ preset }))}
+            <Paragraph>
+                Adaptive quantization (NVENC, AMF, x264, x265; VA-API has none). Off by default on NVENC, on by default
+                on the others:
+            </Paragraph>
+            {select(AQ_MODES, tuning.aq ?? "auto", aq => update({ aq }))}
+            <Paragraph>
+                Rate control buffer in ms (100 to 5000, empty = 500). Longer gives motion more bits for a moment, with
+                bigger bitrate spikes and a little more delay:
+            </Paragraph>
+            <TextInput type="number" placeholder="500" value={buffer} onChange={setBuffer} />
+            <Paragraph>
+                Applies at once (the buffer a second after typing), also to a running stream: it starts again with a key
+                frame.
+            </Paragraph>
         </>
     );
 };
