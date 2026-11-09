@@ -20,16 +20,16 @@ if (!Settings.store.nativeTitleBar)
                     }
                 ]
             },
-            // Visual Refresh
+            // Visual Refresh. PlatformTypes is minified in newer builds
             {
                 find: '"refresh-title-bar-small"',
                 replacement: [
                     {
-                        match: /\i===\i\.PlatformTypes\.WINDOWS/g,
+                        match: /\i===\i\.\i\.WINDOWS/g,
                         replace: "true"
                     },
                     {
-                        match: /\i===\i\.PlatformTypes\.WEB/g,
+                        match: /\i===\i\.\i\.WEB/g,
                         replace: "false"
                     }
                 ]
